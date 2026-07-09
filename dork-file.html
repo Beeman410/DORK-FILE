@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dork File — query builder</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap');
+
+:root{
+  --paper:#ECE7DA;
+  --card:#F6F2E7;
+  --ink:#22314A;
+  --ink-soft:#51617A;
+  --manila:#D7C79E;
+  --manila-dark:#B9A374;
+  --stamp:#A8402A;
+  --rule:#C7BA9C;
+  --ok:#3B6D45;
+  --serif:'Special Elite', 'Courier New', monospace;
+  --mono:'IBM Plex Mono', monospace;
+  --sans:'IBM Plex Sans', sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--paper);font-family:var(--sans);color:var(--ink);}
+.wrap{max-width:960px;margin:0 auto;padding:28px 20px 60px;}
+
+.header{position:relative;padding:18px 0 22px;border-bottom:3px double var(--ink);margin-bottom:22px;}
+.header h1{font-family:var(--serif);font-size:30px;letter-spacing:0.5px;margin:0 0 4px;color:var(--ink);}
+.header p{margin:0;font-size:13px;color:var(--ink-soft);}
+.stamp{
+  position:absolute; top:8px; right:6px;
+  border:3px solid var(--stamp); color:var(--stamp);
+  font-family:var(--serif); font-size:12px; letter-spacing:2px;
+  padding:6px 10px; transform:rotate(-7deg);
+  opacity:0.85; border-radius:4px;
+  text-align:center; line-height:1.3;
+}
+
+.dossier{display:grid; grid-template-columns:210px 1fr; gap:18px;}
+@media (max-width:720px){ .dossier{grid-template-columns:1fr;} }
+
+.tabs{display:flex; flex-direction:column; gap:2px;}
+.tab{
+  font-family:var(--sans); font-size:13px; font-weight:500;
+  text-align:left; padding:11px 14px; cursor:pointer;
+  background:var(--manila); color:var(--ink); border:none;
+  border-left:4px solid var(--manila-dark);
+  clip-path:polygon(0 0, 100% 0, 96% 100%, 0% 100%);
+}
+.tab:hover{background:#E2D4AC;}
+.tab.active{background:var(--card); border-left:4px solid var(--stamp); font-weight:500;}
+
+.refcard{margin-top:16px; background:var(--card); border:1px solid var(--rule); padding:12px 14px; font-size:12px;}
+.refcard h3{font-family:var(--serif); font-size:13px; margin:0 0 8px; color:var(--ink);}
+.refrow{display:flex; justify-content:space-between; gap:8px; padding:3px 0; border-bottom:1px dashed var(--rule);}
+.refrow:last-child{border-bottom:none;}
+.refop{font-family:var(--mono); color:var(--stamp); font-weight:500;}
+.refdesc{color:var(--ink-soft); text-align:right;}
+
+.card{background:var(--card); border:1px solid var(--rule); padding:20px 22px; min-height:280px;}
+.card h2{font-family:var(--serif); font-size:18px; margin:0 0 2px;}
+.tagline{font-size:12px; color:var(--ink-soft); margin:0 0 16px; font-style:italic;}
+
+.tpl{display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--rule); cursor:pointer;}
+.tpl:last-child{border-bottom:none;}
+.tpl input{margin-top:3px;}
+.tpl .name{font-weight:500; font-size:13.5px;}
+.tpl .note{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+
+.fields{margin-top:16px; padding-top:14px; border-top:2px dashed var(--rule); display:flex; flex-wrap:wrap; gap:10px;}
+.field{display:flex; flex-direction:column; gap:4px; flex:1; min-width:160px;}
+.field label{font-size:11px; letter-spacing:0.5px; text-transform:uppercase; color:var(--ink-soft);}
+.field input{font-family:var(--mono); font-size:13px; padding:7px 9px; border:1px solid var(--rule); background:#fff; color:var(--ink);}
+.field input:focus{outline:2px solid var(--stamp); outline-offset:1px;}
+
+.custom-op{display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--rule);}
+.custom-op:last-child{border-bottom:none;}
+.custom-op .opname{font-family:var(--mono); font-size:12.5px; width:78px; color:var(--stamp); flex-shrink:0;}
+.custom-op input{flex:1; font-family:var(--mono); font-size:13px; padding:6px 8px; border:1px solid var(--rule); background:#fff; color:var(--ink);}
+
+.strip{
+  margin-top:20px; background:#fff; border:1px solid var(--ink);
+  padding:14px 16px; display:flex; align-items:center; gap:12px;
+  position:relative;
+}
+.strip::before{
+  content:""; position:absolute; left:0; right:0; top:-6px; height:6px;
+  background-image:radial-gradient(circle, var(--paper) 3px, transparent 3.5px);
+  background-size:14px 14px; background-position:0 0;
+}
+.strip code{flex:1; font-family:var(--mono); font-size:13.5px; word-break:break-all; color:var(--ink);}
+.strip button{
+  font-family:var(--sans); font-size:12.5px; font-weight:500; letter-spacing:0.3px;
+  padding:9px 14px; border:1px solid var(--ink); background:var(--card); color:var(--ink); cursor:pointer;
+  white-space:nowrap;
+}
+.strip button:hover{background:var(--ink); color:var(--card);}
+.strip .copied{color:var(--ok);}
+
+.saved{margin-top:22px;}
+.saved h3{font-family:var(--serif); font-size:14px; margin:0 0 8px;}
+.saved-row{display:flex; align-items:center; gap:8px; padding:7px 10px; background:var(--card); border:1px solid var(--rule); margin-bottom:5px; font-size:12.5px;}
+.saved-row code{flex:1; font-family:var(--mono); word-break:break-all;}
+.saved-row button{border:none; background:none; cursor:pointer; color:var(--ink-soft); font-size:12px; padding:2px 6px;}
+.saved-row button:hover{color:var(--stamp);}
+.empty{font-size:12px; color:var(--ink-soft); font-style:italic;}
+
+.savebar{margin-top:10px; display:flex; gap:8px;}
+.savebar input{flex:1; font-family:var(--sans); font-size:12.5px; padding:7px 9px; border:1px solid var(--rule);}
+.savebar button{font-family:var(--sans); font-size:12px; padding:7px 12px; border:1px solid var(--ink); background:var(--card); cursor:pointer;}
+.savebar button:hover{background:var(--ink); color:var(--card);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="stamp">AUTHORIZED<br>USE ONLY</div>
+    <h1>Dork file</h1>
+    <p>Advanced search operators, assembled for you. For auditing your own domains and authorized OSINT work.</p>
+    <p style="margin-top:6px; font-size:11px; letter-spacing:0.5px; color:var(--ink-soft);">Developed by: George Heath</p>
+  </div>
+
+  <div class="dossier">
+    <div>
+      <div class="tabs" id="tabs"></div>
+      <div class="refcard">
+        <h3>Operator reference</h3>
+        <div id="refList"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" id="card"></div>
+
+      <div class="strip">
+        <code id="queryOut">site:example.com</code>
+        <button id="copyBtn">Copy</button>
+        <button id="openBtn">Open in Google ↗</button>
+      </div>
+
+      <div class="savebar">
+        <input id="saveLabel" placeholder="Name this query, e.g. &quot;Client audit — leaked PDFs&quot;">
+        <button id="saveBtn">Save</button>
+      </div>
+
+      <div class="saved">
+        <h3>Saved queries</h3>
+        <div id="savedList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const OPERATORS = [
+  {op:"site:", desc:"limit to a domain"},
+  {op:"filetype:", desc:"limit to a file type"},
+  {op:"intitle:", desc:"word in page title"},
+  {op:"inurl:", desc:"word in the URL"},
+  {op:"intext:", desc:"word in page body"},
+  {op:"related:", desc:"similar sites"},
+  {op:"cache:", desc:"Google's stored copy"},
+  {op:"-word", desc:"exclude a term"},
+  {op:'"phrase"', desc:"exact phrase match"},
+  {op:"A OR B", desc:"either term"}
+];
+
+const DORKS = {
+  recon: {
+    label:"Recon basics",
+    tagline:"Map what's already public before anyone else does.",
+    templates:[
+      {name:"All indexed pages", q:"site:{domain}", note:"Everything Google has crawled for this domain."},
+      {name:"Subdomain sightings", q:"site:*.{domain} -site:www.{domain}", note:"Surfaces subdomains outside the main host."},
+      {name:"Title contains keyword", q:"site:{domain} intitle:{keyword}", note:"Pages whose title tag contains your keyword."},
+      {name:"Related sites", q:"related:{domain}", note:"Sites Google treats as similar or affiliated."}
+    ]
+  },
+  docs: {
+    label:"Exposed documents",
+    tagline:"Office files and configs that shouldn't be public.",
+    templates:[
+      {name:"Office documents", q:"site:{domain} (filetype:pdf OR filetype:doc OR filetype:docx OR filetype:xls OR filetype:xlsx OR filetype:ppt)", note:"Any indexed spreadsheets, decks, or docs."},
+      {name:"Configs and backups", q:"site:{domain} (filetype:env OR filetype:log OR filetype:bak OR filetype:conf OR filetype:ini)", note:"Config and backup files that leak by accident."},
+      {name:"Keyword inside a PDF", q:"site:{domain} filetype:pdf intext:{keyword}", note:"Searches inside PDF body text."}
+    ]
+  },
+  portals: {
+    label:"Login portals",
+    tagline:"Find the doors before you check they're locked.",
+    templates:[
+      {name:"Admin and login paths", q:"site:{domain} (inurl:admin OR inurl:login OR inurl:portal OR inurl:signin)", note:"URL paths that suggest an entry point."},
+      {name:"Login page titles", q:'site:{domain} (intitle:"login" OR intitle:"sign in" OR intitle:"admin console")', note:"Pages whose title reads like an auth screen."}
+    ]
+  },
+  devices: {
+    label:"Devices & panels",
+    tagline:"Directory listings and dashboards that ended up in the index.",
+    templates:[
+      {name:"Open directory listings", q:'site:{domain} intitle:"index of"', note:"Unintentionally exposed file directories."},
+      {name:"Device dashboards", q:'site:{domain} (intitle:"dashboard" OR intitle:"control panel") inurl:{keyword}', note:"Router, camera, or IoT admin dashboards."}
+    ]
+  },
+  databases: {
+    label:"Databases & backups",
+    tagline:"The stuff that should never have left the server room.",
+    templates:[
+      {name:"SQL dumps", q:"site:{domain} filetype:sql", note:"Indexed raw database dump files."},
+      {name:"phpMyAdmin panels", q:'site:{domain} intitle:"phpMyAdmin"', note:"Exposed database admin panels."},
+      {name:"Exposed .git folders", q:'site:{domain} inurl:".git"', note:"Leaked git repositories with source history."}
+    ]
+  },
+  custom: {label:"Custom builder", tagline:"Stack your own operators from scratch.", templates:null}
+};
+
+const CUSTOM_OPS = [
+  {key:"site", prefix:"site:", placeholder:"example.com"},
+  {key:"filetype", prefix:"filetype:", placeholder:"pdf"},
+  {key:"intitle", prefix:"intitle:", placeholder:"keyword", quote:true},
+  {key:"inurl", prefix:"inurl:", placeholder:"admin"},
+  {key:"intext", prefix:"intext:", placeholder:"keyword", quote:true},
+  {key:"exclude", prefix:"-", placeholder:"word to exclude"},
+  {key:"exact", prefix:"", placeholder:"exact phrase", quote:true},
+  {key:"free", prefix:"", placeholder:"any additional text"}
+];
+
+let activeCat = "recon";
+let activeTplIdx = 0;
+let fieldValues = {domain:"example.com", keyword:"budget"};
+let customValues = {};
+
+function renderTabs(){
+  const el = document.getElementById("tabs");
+  el.innerHTML = "";
+  Object.keys(DORKS).forEach(key=>{
+    const b = document.createElement("button");
+    b.className = "tab" + (key===activeCat ? " active":"");
+    b.textContent = DORKS[key].label;
+    b.onclick = ()=>{ activeCat = key; activeTplIdx = 0; renderTabs(); renderCard(); };
+    el.appendChild(b);
+  });
+}
+
+function renderRef(){
+  const el = document.getElementById("refList");
+  el.innerHTML = OPERATORS.map(o=>
+    `<div class="refrow"><span class="refop">${o.op}</span><span class="refdesc">${o.desc}</span></div>`
+  ).join("");
+}
+
+function fillTemplate(q){
+  return q.replace(/\{domain\}/g, fieldValues.domain || "example.com")
+          .replace(/\{keyword\}/g, fieldValues.keyword || "keyword");
+}
+
+function assembleCustom(){
+  return CUSTOM_OPS.map(o=>{
+    const v = (customValues[o.key]||"").trim();
+    if(!v) return "";
+    return o.quote ? `${o.prefix}"${v}"` : `${o.prefix}${v}`;
+  }).filter(Boolean).join(" ");
+}
+
+function renderCard(){
+  const cat = DORKS[activeCat];
+  const card = document.getElementById("card");
+
+  if(activeCat === "custom"){
+    card.innerHTML = `
+      <h2>${cat.label}</h2>
+      <p class="tagline">${cat.tagline}</p>
+      <div id="customOps"></div>
+    `;
+    const opsEl = document.getElementById("customOps");
+    opsEl.innerHTML = CUSTOM_OPS.map(o=>`
+      <div class="custom-op">
+        <span class="opname">${o.prefix || "text"}</span>
+        <input data-key="${o.key}" placeholder="${o.placeholder}" value="${customValues[o.key]||''}">
+      </div>
+    `).join("");
+    opsEl.querySelectorAll("input").forEach(inp=>{
+      inp.addEventListener("input", e=>{
+        customValues[e.target.dataset.key] = e.target.value;
+        updateQuery();
+      });
+    });
+    updateQuery();
+    return;
+  }
+
+  card.innerHTML = `
+    <h2>${cat.label}</h2>
+    <p class="tagline">${cat.tagline}</p>
+    <div id="tplList"></div>
+    <div class="fields" id="fieldsBox"></div>
+  `;
+  const tplList = document.getElementById("tplList");
+  tplList.innerHTML = cat.templates.map((t,i)=>`
+    <div class="tpl" data-idx="${i}">
+      <input type="radio" name="tpl" ${i===activeTplIdx?"checked":""}>
+      <div>
+        <div class="name">${t.name}</div>
+        <div class="note">${t.note}</div>
+      </div>
+    </div>
+  `).join("");
+  tplList.querySelectorAll(".tpl").forEach(row=>{
+    row.addEventListener("click", ()=>{
+      activeTplIdx = parseInt(row.dataset.idx);
+      renderCard();
+    });
+  });
+
+  const needsDomain = cat.templates[activeTplIdx].q.includes("{domain}");
+  const needsKeyword = cat.templates[activeTplIdx].q.includes("{keyword}");
+  const fieldsBox = document.getElementById("fieldsBox");
+  fieldsBox.innerHTML = "";
+  if(needsDomain){
+    fieldsBox.innerHTML += `<div class="field"><label>Domain</label><input id="domainInput" value="${fieldValues.domain}"></div>`;
+  }
+  if(needsKeyword){
+    fieldsBox.innerHTML += `<div class="field"><label>Keyword</label><input id="keywordInput" value="${fieldValues.keyword}"></div>`;
+  }
+  const d = document.getElementById("domainInput");
+  if(d) d.addEventListener("input", e=>{ fieldValues.domain = e.target.value; updateQuery(); });
+  const k = document.getElementById("keywordInput");
+  if(k) k.addEventListener("input", e=>{ fieldValues.keyword = e.target.value; updateQuery(); });
+
+  updateQuery();
+}
+
+function currentQuery(){
+  if(activeCat === "custom") return assembleCustom() || "(fill in an operator to build a query)";
+  return fillTemplate(DORKS[activeCat].templates[activeTplIdx].q);
+}
+
+function updateQuery(){
+  const q = currentQuery();
+  document.getElementById("queryOut").textContent = q;
+  document.getElementById("queryOut").classList.remove("copied");
+}
+
+document.getElementById("copyBtn").addEventListener("click", ()=>{
+  const q = currentQuery();
+  navigator.clipboard.writeText(q).catch(()=>{});
+  const out = document.getElementById("queryOut");
+  const prev = out.textContent;
+  out.textContent = "Copied ✓  " + prev;
+  setTimeout(()=>{ out.textContent = prev; }, 1200);
+});
+
+document.getElementById("openBtn").addEventListener("click", ()=>{
+  const q = currentQuery();
+  const url = "https://www.google.com/search?q=" + encodeURIComponent(q);
+  window.open(url, "_blank");
+});
+
+const STORE_KEY = "dorkfile:saved";
+
+function loadSaved(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+
+function writeSaved(items){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(items)); }catch(e){}
+}
+
+function renderSaved(){
+  const el = document.getElementById("savedList");
+  const items = loadSaved().sort((a,b)=> (b.ts||0) - (a.ts||0));
+  if(items.length === 0){
+    el.innerHTML = `<div class="empty">Nothing saved yet. Build a query above, then save it.</div>`;
+    return;
+  }
+  el.innerHTML = items.map(it=>`
+    <div class="saved-row">
+      <div style="min-width:140px; font-weight:500;">${it.label}</div>
+      <code>${it.query}</code>
+      <button data-open="${it.ts}">Open</button>
+      <button data-del="${it.ts}">Delete</button>
+    </div>
+  `).join("");
+  el.querySelectorAll("[data-open]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const it = loadSaved().find(x=>String(x.ts)===b.dataset.open);
+      if(it) window.open("https://www.google.com/search?q=" + encodeURIComponent(it.query), "_blank");
+    });
+  });
+  el.querySelectorAll("[data-del]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      writeSaved(loadSaved().filter(x=>String(x.ts)!==b.dataset.del));
+      renderSaved();
+    });
+  });
+}
+
+document.getElementById("saveBtn").addEventListener("click", ()=>{
+  const label = document.getElementById("saveLabel").value.trim();
+  const q = currentQuery();
+  if(!label) return;
+  const items = loadSaved();
+  items.push({label, query:q, ts:Date.now()});
+  writeSaved(items);
+  document.getElementById("saveLabel").value = "";
+  renderSaved();
+});
+
+renderTabs();
+renderRef();
+renderCard();
+renderSaved();
+</script>
+</body>
+</html>
